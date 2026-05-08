@@ -91,7 +91,7 @@ jobs:
             "Ruby|ruby -v"
             "PHP|php -v | head -n 1"
             "Perl|perl -v | grep 'This is perl'"
-            ".NET SDK|dotnet --version"
+            ".NET SDK|dotnet --info"
             
             # 云端、DevOps 与 IaC
             "Docker|docker --version"
@@ -127,8 +127,6 @@ jobs:
         run: |
           echo -e "\e[1;33m=== IP 配置 ===\e[0m"
           ip -brief addr show
-          echo -e "\e[1;33m=== DNS / 外网连通性测试 ===\e[0m"
-          ping -c 2 github.com
 
       - name: 9. 检查默认工作目录与系统根目录 (Workspace Directory)
         run: |
