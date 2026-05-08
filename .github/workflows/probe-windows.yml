@@ -7,11 +7,11 @@ on:
       - '.github/workflows/probe-windows.yml' # 当此脚本更新时自动运行
   schedule:
     # 每天的 UTC 时间 00:00 运行（对应北京时间早上 08:00）
-    - cron: '0 0 * * *'
+    - cron: '0 0 */15 * *'
 
 jobs:
   explore-windows:
-    runs-on: windows-latest # 也可以指定 windows-2022 或 windows-2019
+    runs-on: windows-latest
     
     steps:
       - name: 1. 检查操作系统详细信息 (OS Details)
@@ -55,17 +55,76 @@ jobs:
           Write-Host "=== PATH 环境变量解析 ==="
           $env:PATH -split ';'
 
-      - name: 7. 检查预装的常用工具版本 (Installed Tools)
-        continue-on-error: true # 防止某个工具未安装导致整个步骤失败
+      - name: 7. 全面检查预装工具版本 (Comprehensive Tool Check)
         run: |
-          Write-Host "=== Git ==="; git --version
-          Write-Host "=== GitHub CLI ==="; gh --version
-          Write-Host "=== Node.js ==="; node --version
-          Write-Host "=== Python ==="; python --version
-          Write-Host "=== Java ==="; java -version
-          Write-Host "=== Docker ==="; docker --version
-          Write-Host "=== PowerShell ==="; $PSVersionTable.PSVersion
-
+          # 定义需要探测的工具列表及对应命令
+          $tools = @(
+              # 版本控制
+              @{ Name = "Git"; Cmd = "git --version" }
+              @{ Name = "GitHub CLI"; Cmd = "gh --version" }
+              
+              # 前端与 JS 生态
+              @{ Name = "Node.js"; Cmd = "node --version" }
+              @{ Name = "npm"; Cmd = "npm --version" }
+              @{ Name = "Yarn"; Cmd = "yarn --version" }
+              @{ Name = "pnpm"; Cmd = "pnpm --version" }
+              
+              # Python 生态
+              @{ Name = "Python"; Cmd = "python --version" }
+              @{ Name = "pip"; Cmd = "pip --version" }
+              @{ Name = "Miniconda"; Cmd = "conda --version" }
+              
+              # Java 生态 (2>&1 是为了捕获 Java 输出到错误流的日志)
+              @{ Name = "Java"; Cmd = "java -version 2>&1" }
+              @{ Name = "Maven"; Cmd = "mvn --version | Select-Object -First 1" }
+              @{ Name = "Gradle"; Cmd = "gradle --version | Select-String -Pattern '^Gradle '" }
+              
+              # .NET 生态
+              @{ Name = ".NET SDK List"; Cmd = "dotnet --info" }
+              @{ Name = "NuGet"; Cmd = "nuget | Select-Object -First 1" }
+              
+              # C / C++ 编译与工具链
+              @{ Name = "GCC / MinGW"; Cmd = "gcc --version | Select-Object -First 1" }
+              @{ Name = "CMake"; Cmd = "cmake --version | Select-Object -First 1" }
+              @{ Name = "MSBuild"; Cmd = "msbuild -version" }
+              @{ Name = "Ninja"; Cmd = "ninja --version" }
+              @{ Name = "vcpkg (C++ Package Manager)"; Cmd = "vcpkg version" }
+              
+              # 其他后端与系统语言
+              @{ Name = "Go"; Cmd = "go version" }
+              @{ Name = "Rust (rustc)"; Cmd = "rustc --version" }
+              @{ Name = "Rust (Cargo)"; Cmd = "cargo --version" }
+              @{ Name = "Ruby"; Cmd = "ruby -v" }
+              @{ Name = "PHP"; Cmd = "php -v | Select-Object -First 1" }
+              @{ Name = "Perl"; Cmd = "perl -v | Select-String -Pattern 'This is perl'" }
+              
+              # 云端与 DevOps 工具
+              @{ Name = "Docker"; Cmd = "docker --version" }
+              @{ Name = "Docker Compose"; Cmd = "docker-compose --version" }
+              @{ Name = "Azure CLI"; Cmd = "az --version | Select-Object -First 1" }
+              @{ Name = "AWS CLI"; Cmd = "aws --version" }
+              @{ Name = "Google Cloud CLI"; Cmd = "gcloud --version | Select-Object -First 1" }
+              
+              # 系统工具与包管理
+              @{ Name = "Chocolatey"; Cmd = "choco --version" }
+              @{ Name = "cURL"; Cmd = "curl -V | Select-Object -First 1" }
+              @{ Name = "7-Zip"; Cmd = "7z | Select-Object -First 2" }
+          )
+          Write-Host "=== 开始全面扫描预装工具版本 ==="
+          Write-Host ""
+          # 循环探测每个工具
+          foreach ($tool in $tools) {
+              # 使用 Cyan 蓝绿色高亮显示工具名，方便在 Actions 日志中阅读
+              Write-Host "[$($tool.Name)]" -ForegroundColor Cyan
+              try {
+                  # 执行命令，将错误流(2)重定向到标准输出(1)，防止红字报错中断运行
+                  Invoke-Expression "$($tool.Cmd) 2>&1"
+              } catch {
+                  Write-Host "未安装 或 无法执行" -ForegroundColor DarkGray
+              }
+              Write-Host ""
+          }
+          
       - name: 8. 检查网络配置 (Network)
         run: |
           Write-Host "=== IP 配置 ==="
