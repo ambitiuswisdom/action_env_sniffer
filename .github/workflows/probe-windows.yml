@@ -1,0 +1,81 @@
+name: Probe Windows Runner Environment
+
+on:
+  workflow_dispatch: # 允许你在 GitHub Actions 页面手动触发此工作流
+  push:
+    paths:
+      - '.github/workflows/probe-windows.yml' # 当此脚本更新时自动运行
+  schedule:
+    # 每天的 UTC 时间 00:00 运行（对应北京时间早上 08:00）
+    - cron: '0 0 * * *'
+
+jobs:
+  explore-windows:
+    runs-on: windows-latest # 也可以指定 windows-2022 或 windows-2019
+    
+    steps:
+      - name: 1. 检查操作系统详细信息 (OS Details)
+        run: |
+          Write-Host "=== 操作系统基础信息 ==="
+          Get-ComputerInfo | Select-Object OsName, OsVersion, OsArchitecture, WindowsProductName | Format-List
+          Write-Host "=== SystemInfo 输出 ==="
+          systeminfo
+
+      - name: 2. 检查 CPU 与 内存信息 (Hardware)
+        run: |
+          Write-Host "=== CPU 信息 ==="
+          Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors | Format-List
+          
+          Write-Host "=== 内存 信息 ==="
+          $mem = Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum
+          Write-Host "总物理内存: $([math]::round($mem.Sum / 1GB, 2)) GB"
+
+      - name: 3. 检查磁盘空间 (Disk Space)
+        run: |
+          Write-Host "=== 磁盘驱动器状态 ==="
+          Get-PSDrive -PSProvider FileSystem | Select-Object Name, @{Name="Used(GB)";Expression={[math]::round($_.Used/1GB,2)}}, @{Name="Free(GB)";Expression={[math]::round($_.Free/1GB,2)}} | Format-Table -AutoSize
+
+      - name: 4. 检查当前用户与权限 (User & Privileges)
+        run: |
+          Write-Host "=== 当前用户 ==="
+          whoami
+          Write-Host "=== 用户权限 ==="
+          whoami /priv
+          Write-Host "=== 是否为管理员 ==="
+          $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+          Write-Host "Is Administrator: $isAdmin"
+
+      - name: 5. 检查所有环境变量 (Environment Variables)
+        run: |
+          Write-Host "=== 环境变量列表 ==="
+          Get-ChildItem Env: | Sort-Object Name | Format-Table -AutoSize
+
+      - name: 6. 检查 PATH 路径 (PATH Variable)
+        run: |
+          Write-Host "=== PATH 环境变量解析 ==="
+          $env:PATH -split ';'
+
+      - name: 7. 检查预装的常用工具版本 (Installed Tools)
+        continue-on-error: true # 防止某个工具未安装导致整个步骤失败
+        run: |
+          Write-Host "=== Git ==="; git --version
+          Write-Host "=== GitHub CLI ==="; gh --version
+          Write-Host "=== Node.js ==="; node --version
+          Write-Host "=== Python ==="; python --version
+          Write-Host "=== Java ==="; java -version
+          Write-Host "=== Docker ==="; docker --version
+          Write-Host "=== PowerShell ==="; $PSVersionTable.PSVersion
+
+      - name: 8. 检查网络配置 (Network)
+        run: |
+          Write-Host "=== IP 配置 ==="
+          ipconfig /all
+          Write-Host "=== DNS 解析测试 ==="
+          Resolve-DnsName github.com
+
+      - name: 9. 检查默认工作目录 (Workspace Directory)
+        run: |
+          Write-Host "当前工作目录: $PWD"
+          Write-Host "GitHub Workspace: ${env:GITHUB_WORKSPACE}"
+          Write-Host "=== 根目录 (C:\) 内容 ==="
+          Get-ChildItem C:\ | Select-Object Name, Attributes
