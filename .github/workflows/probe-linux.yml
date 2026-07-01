@@ -10,7 +10,10 @@ on:
 
 jobs:
   explore-linux:
-    runs-on: ubuntu-latest # 使用最新的 Ubuntu 运行环境
+    runs-on: ${{ matrix.runner }} # 使用最新的 Ubuntu 运行环境
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, ubuntu-slim]
     
     steps:
       - name: 1. 检查操作系统与内核详细信息 (OS & Kernel)
